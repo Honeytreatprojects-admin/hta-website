@@ -75,6 +75,7 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@400;500;600&display=swap"></noscript>
   <link rel="stylesheet" href="styles.min.css">
+  <link rel="icon" type="hta-logo.png" href="hta-logo.png">
   <style>
     /* Course item icons — SVG version */
     .course-item-icon {
@@ -352,6 +353,28 @@
       transform: translateY(-2px);
     }
 
+        /* LMS Portal card */
+    .ccc-lms-visual {
+      background: linear-gradient(135deg, var(--purple-dark), var(--purple-main) 55%, var(--green-main));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ccc-lms-visual svg {
+      width: 76px;
+      height: 76px;
+      color: #fff;
+      transition: transform 0.45s ease;
+    }
+    .ccc-dynamic-card:hover .ccc-lms-visual svg { transform: scale(1.08); }
+    .ccc-lms-text {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+    a.ccc-enroll-btn { text-decoration: none; }
+
     /* Responsive */
     @media (max-width: 1024px) {
       .ccc-dynamic-grid { grid-template-columns: repeat(2, 1fr); }
@@ -545,6 +568,30 @@
             </ul>
           </div>
           <button class="ccc-enroll-btn" onclick="openEnrollModal('Entertainment Skills', ['Magodo Centre (Lagos)'])">Enroll Now</button>
+        </div>
+      </div>
+
+            <!-- LMS PORTAL -->
+      <div class="ccc-dynamic-card">
+        <!-- <div class="ccc-dynamic-img-wrap ccc-lms-visual">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M22 10 12 5 2 10l10 5 10-5z"/>
+            <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            <path d="M22 10v6"/>
+          </svg>
+        </div> -->
+        <div class="ccc-dynamic-img-wrap">
+          <img width="375" height="369" src="course-lms.webp" alt="LMS Portal" class="ccc-dynamic-img" loading="lazy" decoding="async">
+        </div>
+        <div class="ccc-dynamic-body">
+          <h3 class="ccc-dynamic-title">LMS Portal</h3>
+          <p class="ccc-lms-text">Already enrolled? Log in to access your learning materials online, anywhere in Nigeria.</p>
+          <ul class="ccc-check-list">
+            <li><span class="ccc-check-icon"></span>Access course materials</li>
+            <li><span class="ccc-check-icon"></span>Learn at your own pace</li>
+            <li><span class="ccc-check-icon"></span>Track your progress</li>
+          </ul>
+          <a class="ccc-enroll-btn" href="https://YOUR-LMS-LINK-HERE" target="_blank" rel="noopener">Open LMS Portal</a>
         </div>
       </div>
 
@@ -1082,7 +1129,7 @@
         </li>
       </ul>
 
-      <h4 style="margin-top:1.5rem;">Legal</h4>
+      <h4 style="margin-top:1rem;">Legal</h4>
       <ul>
         <li><a href="terms.pdf">Terms of Use</a></li>
         <li><a href="privacy-policy.pdf">Privacy Policy</a></li>
@@ -1097,7 +1144,7 @@
         <li><a href="quality-policy.pdf">QMS Policy Statement</a></li>
       </ul>
 
-      <h4 style="margin-top:1.5rem;">Related Entities</h4>
+      <h4 style="margin-top:2rem;">Related Entities</h4>
       <ul>
         <li><a href="https://honeytreatgrp.com/" target="_blank" rel="noopener">Honeytreat Group</a></li>
         <li><a href="https://honeytreatglobal.com/" target="_blank" rel="noopener">Honeytreat Global Services</a></li>
@@ -1215,7 +1262,7 @@
           <input type="tel" name="phone" placeholder="+234 800 000 0000" required>
         </div>
         <div class="enroll-form-group">
-          <label>Course You Want to Do *</label>
+          <label>Course You Want to Take *</label>
           <select name="courseChoice" id="courseSelect" required></select>
         </div>
         <div class="enroll-form-group">
@@ -1463,6 +1510,145 @@
   .enroll-modal { padding: 1.75rem 1.25rem; }
   .enroll-form-row { grid-template-columns: 1fr; }
 }
+
+/* ===== ENROLL DIALOG: SCROLLBAR + SELECTS + MOBILE POLISH ===== */
+
+/* ---------- 1. Scrollbar ---------- */
+.enroll-modal {
+  --chev-green: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232d6a4f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  scrollbar-width: thin;                              /* Firefox */
+  scrollbar-color: rgba(45, 106, 79, 0.35) transparent;
+}
+.enroll-modal::-webkit-scrollbar { width: 10px; }
+.enroll-modal::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 24px 0;                                     /* keeps it off the rounded corners */
+}
+.enroll-modal::-webkit-scrollbar-thumb {
+  background: rgba(45, 106, 79, 0.3);
+  border: 3px solid #fff;                             /* makes the thumb look slim */
+  border-radius: 10px;
+  background-clip: padding-box;
+}
+.enroll-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--green-main);
+  background-clip: padding-box;
+}
+
+/* ---------- 2. Dropdown boxes ---------- */
+.enroll-form-group select {
+  min-height: 48px;
+  font-weight: 500;
+  color: var(--text-dark);
+  border: 1.5px solid #dfe5e1;
+  border-radius: 12px;
+  background-color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+/* Placeholder look until a course is chosen */
+.enroll-form-group select:required:invalid { color: #a3ada0; font-weight: 400; }
+
+/* Chosen look */
+.enroll-form-group select:valid:not(:focus) {
+  border-color: var(--green-light);
+  background-color: var(--green-muted);
+}
+
+/* Focus look (arrow turns green) */
+.enroll-form-group select:focus {
+  border-color: var(--green-main);
+  background-color: #fff;
+  background-image: var(--chev-green);
+  box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.12);
+}
+
+/* The open list (browsers only allow basic styling here) */
+.enroll-form-group select option {
+  color: var(--text-dark);
+  font-weight: 400;
+  padding: 10px 12px;
+}
+.enroll-form-group select option:disabled { color: #a3ada0; }
+.enroll-form-group select optgroup {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--green-dark);
+}
+
+/* ---------- 3. Mobile ---------- */
+@media (max-width: 480px) {
+  .enroll-modal {
+    max-height: 92vh;
+    max-height: 92dvh;
+    scrollbar-width: none;                            /* touch scrolling needs no bar */
+  }
+  .enroll-modal::-webkit-scrollbar { display: none; }
+
+  /* Drag handle on the sheet */
+  .enroll-topbar { padding-top: 1.6rem; }
+  .enroll-topbar::before {
+    content: "";
+    position: absolute;
+    top: 0.6rem;
+    left: 50%;
+    width: 44px;
+    height: 5px;
+    margin-left: -22px;
+    border-radius: 5px;
+    background: #d5dcd7;
+  }
+
+  /* First and last name stay side by side, the rest stack */
+  .enroll-section-label + .enroll-form-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+
+  /* Bigger tap targets, no iOS zoom */
+  .enroll-form-group input,
+  .enroll-form-group select,
+  .enroll-form-group textarea {
+    font-size: 16px;
+    min-height: 50px;
+  }
+  .enroll-form-group textarea { min-height: 84px; }
+  .enroll-close { width: 38px; height: 38px; }
+  .enroll-back { padding: 0.35rem 0; font-size: 0.9rem; }
+  .enroll-centre-btn { padding: 1.05rem 1rem; }
+
+  /* Submit bar clear of the home indicator */
+  .enroll-actions { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
+  .enroll-submit-btn { min-height: 52px; font-size: 1rem; }
+}
+
+/* Short screens (phones on their side) */
+@media (max-height: 560px) {
+  .enroll-modal { --py: 1.25rem; }
+  #enrollStep2 .enroll-modal-header h3 { font-size: 1.15rem; }
+  .enroll-section-label { margin: 0.8rem 0 0.6rem; }
+}
+
+/* ===== FIX: single dropdown arrow ===== */
+.enroll-form-group select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 2.75rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7a66' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 16px 16px;
+}
+.enroll-form-group select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232d6a4f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 16px 16px;
+}
+
 </style>
 
 <!-- EmailJS SDK -->
