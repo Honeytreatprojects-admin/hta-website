@@ -1,18 +1,26 @@
 <?php
 /**
- * enroll-brevo.php — receives a course enrolment from courses.html and hands it to Brevo
- * so Automation #2 sends the student their automated emails.
+ * enroll-brevo.php — receives a course enrolment from courses.html and:
  *
- *  1. Creates / updates the contact (name, phone, course, centre) and, if BREVO_LIST_ID is set,
+ *  1. Creates / updates the contact in Brevo (name, phone, course, centre) and, if BREVO_LIST_ID is set,
  *     adds them to that list  -> starts a "Contact added to list" automation.
  *  2. Sends a custom event (BREVO_EVENT_NAME)  -> starts a "Custom event" automation.
+ *  3. Emails the selected centre (Brevo transactional email)  -> replaces the old EmailJS notification.
  *
- * The existing EmailJS notification to the centre is untouched; this runs alongside it.
+ * Optional extra constants for brevo-config.php (defaults are used if you leave them out):
+ *   BREVO_SENDER_EMAIL  – must be a verified sender / authenticated domain in Brevo
+ *   BREVO_SENDER_NAME
+ *   HTA_FALLBACK_EMAIL  – receives the notification if the centre is not recognised
  */
+
 define('HTA_BREVO', true);
-$cfg = __DIR__ . '/brevo-config.php';
+$cfg = __DIR__ . '/secrets/brevo-config-v2.php';
 if (!is_file($cfg)) { hta_out(500, ['ok' => false, 'error' => 'config_missing']); }
 require $cfg;
+
+if (!defined('BREVO_SENDER_EMAIL')) define('BREVO_SENDER_EMAIL', 'contact@honeytreatacademy.com');
+if (!defined('BREVO_SENDER_NAME'))  define('BREVO_SENDER_NAME', 'HTA Website');
+if (!defined('HTA_FALLBACK_EMAIL')) define('HTA_FALLBACK_EMAIL', 'contact@honeytreatacademy.com');
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
@@ -49,6 +57,7 @@ $first   = $clean($in['firstName'] ?? '', 60);
 $last    = $clean($in['lastName'] ?? '', 60);
 $email   = strtolower($clean($in['email'] ?? '', 120));
 $phone   = $clean($in['phone'] ?? '', 30);
+$track   = $clean($in['track'] ?? '', 80);
 $course  = $clean($in['course'] ?? '', 80);
 $centre  = $clean($in['centre'] ?? '', 80);
 $message = $clean($in['message'] ?? '', 500);
@@ -136,6 +145,7 @@ if (BREVO_EVENT_NAME !== '') {
         'identifiers'        => ['email_id' => $email],
         'contact_properties' => ['FIRSTNAME' => $first, 'LASTNAME' => $last],
         'event_properties'   => [
+            'track'   => $track,
             'course'  => $course,
             'centre'  => $centre,
             'phone'   => $sms ?: $phone,
@@ -152,6 +162,89 @@ if ((int) BREVO_LIST_ID <= 0 && BREVO_EVENT_NAME === '') {
     hta_log('neither BREVO_LIST_ID nor BREVO_EVENT_NAME is set — no automation can start');
 }
 
-$ok = $contactOk && $eventOk !== false;
-if ($ok) @touch($dupe);
-hta_out($ok ? 200 : 502, ['ok' => $ok, 'contact' => $contactOk, 'event' => $eventOk]);
+/* ---------- 4. Notify the centre (replaces EmailJS) ---------- */
+// Centre addresses now live on the server only, so they no longer appear in the page source.
+$centreEmails = [
+    'Akilo Centre (Lagos)'        => 'hta.akilocentre@gmail.com',
+    'Abule Egba Centre (Lagos)'   => 'hta.abuleegbacentre@gmail.com',
+    'Osogbo Centre (Osun)'        => 'hta.osogbocentre@gmail.com',
+    'Monatan Centre (Ibadan)'     => 'hta.monatancentre@gmail.com',
+    'Tijani Bello Centre (Lagos)' => 'hta.tijanibellocentre@gmail.com',
+    'Magodo Centre (Lagos)'       => 'hta.magodocentre@gmail.com',
+    'Abuja Centre (Abuja)'        => 'hta.abujacentre@gmail.com',
+];
+$to = $centreEmails[$centre] ?? HTA_FALLBACK_EMAIL;
+
+$h = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
+$row = function ($label, $value) use ($h) {
+    return '<tr><td style="padding:6px 12px 6px 0;color:#666;vertical-align:top;"><b>' . $h($label) . '</b></td>'
+         . '<td style="padding:6px 0;">' . $h($value) . '</td></tr>';
+};
+$html = '<div style="font-family:Arial,sans-serif;font-size:14px;color:#222;">'
+      . '<h3 style="margin:0 0 12px;">New course enrolment</h3>'
+      . '<table cellpadding="0" cellspacing="0">'
+      . $row('Name', trim($first . ' ' . $last))
+      . $row('Email', $email)
+      . $row('Phone', $phone)
+      . $row('Track', $track)
+      . $row('Course', $course)
+      . $row('Centre', $centre)
+      . $row('Message', $message !== '' ? $message : 'No additional message.')
+      . '</table></div>';
+
+[$code, $body, $cerr] = brevo('POST', '/smtp/email', [
+    'sender'      => ['name' => BREVO_SENDER_NAME, 'email' => BREVO_SENDER_EMAIL],
+    'to'          => [['email' => $to]],
+    'replyTo'     => ['email' => $email, 'name' => trim($first . ' ' . $last)],
+    'subject'     => 'New enrolment: ' . $course . ' (' . $centre . ')',
+    'htmlContent' => $html,
+]);
+$notifyOk = ($code >= 200 && $code < 300);
+if (!$notifyOk) hta_log('centre email failed: ' . $code . ' ' . ($body['code'] ?? '') . ' ' . ($body['message'] ?? $cerr));
+
+/* ---------- 4b. Forward to the HTA CRM ---------- */
+$crmOk = null; // null = not configured
+if (defined('HTA_CRM_URL') && HTA_CRM_URL !== '') {
+    $crmPayload = [
+        'external_id'  => md5($email . '|' . $course . '|' . $centre . '|' . gmdate('Y-m-d')),
+        'submitted_at' => gmdate('c'),
+        'first_name'   => $first,
+        'last_name'    => $last,
+        'email'        => $email,
+        'phone'        => $sms ?: $phone,
+        'track'        => $track,
+        'course'       => $course,
+        'centre'       => $centre,
+        'message'      => $message,
+        'source'       => 'honeytreatacademy.com' . $page,
+    ];
+
+    $ch = curl_init(HTA_CRM_URL);
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 6,
+        CURLOPT_TIMEOUT        => 12,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'Accept: application/json',
+            'Authorization: Bearer ' . (defined('HTA_CRM_TOKEN') ? HTA_CRM_TOKEN : ''),
+        ],
+        CURLOPT_POSTFIELDS     => json_encode($crmPayload, JSON_UNESCAPED_UNICODE),
+    ]);
+    $crmRes  = curl_exec($ch);
+    $crmCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $crmErr  = curl_error($ch);
+    curl_close($ch);
+
+    $crmOk = ($crmCode >= 200 && $crmCode < 300);
+    if (!$crmOk) hta_log('crm failed: ' . $crmCode . ' ' . $crmErr);
+}
+
+/* ---------- 5. Result ---------- */
+$ok = $notifyOk || $contactOk || ($crmOk === true);
+if ($notifyOk && $contactOk && $eventOk !== false && $crmOk !== false) @touch($dupe);
+hta_out($ok ? 200 : 502, [
+    'ok' => $ok, 'contact' => $contactOk, 'event' => $eventOk,
+    'notify' => $notifyOk, 'crm' => $crmOk,
+]);

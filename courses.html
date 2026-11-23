@@ -1651,30 +1651,10 @@
 
 </style>
 
-<!-- EmailJS SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-
 <script>
 // =============================================
-// EMAILJS SETUP
+// COURSES BY TRACK
 // =============================================
-const EMAILJS_PUBLIC_KEY  = "TzRzcOGem6Y8GBixQ";
-const EMAILJS_SERVICE_ID  = "service_0gxwzsf";
-const EMAILJS_TEMPLATE_ID = "template_e9pful9";
-
-// =============================================
-// CENTRE EMAIL MAPPING (UPDATED WITH YOUR REAL EMAILS)
-// =============================================
-const CENTRE_EMAILS = {
-  "Akilo Centre (Lagos)"        : "hta.akilocentre@gmail.com",
-  "Abule Egba Centre (Lagos)"   : "hta.abuleegbacentre@gmail.com",
-  "Osogbo Centre (Osun)"        : "hta.osogbocentre@gmail.com",
-  "Monatan Centre (Ibadan)"     : "hta.monatancentre@gmail.com",
-  "Tijani Bello Centre (Lagos)" : "hta.tijanibellocentre@gmail.com",
-  "Magodo Centre (Lagos)"       : "hta.magodocentre@gmail.com",
-  "Abuja Centre (Abuja)"        : "hta.abujacentre@gmail.com",
-};
-
 const COURSES_BY_TRACK = {
   "Construction Skills": [
     "Domestic Water Supply", "Pipe Fitting Installation",
@@ -1697,15 +1677,13 @@ const COURSES_BY_TRACK = {
   ]
 };
 
+// Where enrolments are sent (the PHP file does the Brevo contact + centre email)
+const ENROLL_ENDPOINT = "enroll-brevo-v2.php";
+
 let currentCentres = [];
 
 let currentCourse = "";
 let currentCentre = "";
-
-// Initialise EmailJS once
-(function(){
-  emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-})();
 
 function openEnrollModal(course, centres) {
   currentCentres = centres;
@@ -1794,7 +1772,11 @@ document.addEventListener("keydown", function(e) {
   if (e.key === "Escape") closeEnrollModalBtn();
 });
 
-function submitEnrollForm(e) {
+// =============================================
+// SUBMIT: one request to the server, which saves
+// the contact in Brevo AND emails the centre
+// =============================================
+async function submitEnrollForm(e) {
   e.preventDefault();
   const form = e.target;
   const btn  = document.getElementById("enrollSubmitBtn");
@@ -1804,45 +1786,60 @@ function submitEnrollForm(e) {
   const chosenCourse = form.courseChoice.value;
   const chosenCentre = form.centreChoice.value;
 
-  // Keep hidden fields in sync (in case brevo-enroll.js reads them)
+  // Keep hidden fields in sync
   document.getElementById("hiddenCourse").value = chosenCourse;
   document.getElementById("hiddenCentre").value = chosenCentre;
 
-  // Collect form data
-  const params = {
-    to_email   : CENTRE_EMAILS[chosenCentre] || "contact@honeytreatacademy.com",
-    track      : currentCourse,
-    course     : chosenCourse,
-    centre     : chosenCentre,
-    first_name : form.firstName.value,
-    last_name  : form.lastName.value,
-    email      : form.email.value,
-    phone      : form.phone.value,
-    message    : form.message.value || "No additional message.",
-    reply_to   : form.email.value,
+  // Work out the track. For "All Courses", find the track the chosen course belongs to.
+  let track = currentCourse;
+  if (!COURSES_BY_TRACK[track]) {
+    for (const t in COURSES_BY_TRACK) {
+      if (COURSES_BY_TRACK[t].indexOf(chosenCourse) !== -1) { track = t; break; }
+    }
+  }
+
+  const payload = {
+    firstName: form.firstName.value.trim(),
+    lastName:  form.lastName.value.trim(),
+    email:     form.email.value.trim(),
+    phone:     form.phone.value.trim(),
+    message:   form.message.value.trim(),
+    track:     track,
+    course:    chosenCourse,
+    centre:    chosenCentre,
+    page:      location.pathname
   };
 
   // Disable button / show loading
   btn.disabled = true;
   txt.textContent = "Sending...";
 
-  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
-    .then(function() {
-      document.getElementById("enrollForm").style.display = "none";
-      document.getElementById("successCentreName").textContent = chosenCentre;
-      document.getElementById("enrollSuccess").style.display = "block";
-      form.reset();
-      btn.disabled = false;
-      txt.textContent = "Submit Enrollment";
-    })
-    .catch(function(err) {
-      alert("Oops! Something went wrong. Please try again.\nError: " + JSON.stringify(err));
-      btn.disabled = false;
-      txt.textContent = "Submit Enrollment";
+  try {
+    const res  = await fetch(ENROLL_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "same-origin"
     });
+    const data = await res.json().catch(function () { return {}; });
+
+    if (!res.ok || !data.ok) {
+      throw new Error("Enrolment failed (HTTP " + res.status + ")");
+    }
+
+    document.getElementById("enrollForm").style.display = "none";
+    document.getElementById("successCentreName").textContent = chosenCentre;
+    document.getElementById("enrollSuccess").style.display = "block";
+    form.reset();
+  } catch (err) {
+    console.error(err);
+    alert("Sorry, we couldn't submit your enrolment. Please try again, or call us on +234-807-334-2278.");
+  } finally {
+    btn.disabled = false;
+    txt.textContent = "Submit Enrollment";
+  }
 }
 </script>
-<script src="brevo-enroll.js" defer></script>
 <script src="hta-bot.js" defer></script>
 
 </body>
